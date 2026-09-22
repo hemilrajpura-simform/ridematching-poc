@@ -1,0 +1,109 @@
+// Prisma schema for the ride-matching POC.
+//
+// IMPORTANT — the PostGIS bit:
+// Prisma does not have a native `geography` type. The strategy here (and it's a
+// good answer for the walkthrough) is:
+//   * Store the raw coordinates as plain Float columns that Prisma DOES manage:
+//     originLat/originLng and destLat/destLng.
+//   * Add two GENERATED geography columns (origin_geog, dest_geog) plus their
+//     GiST indexes with a small raw-SQL step (scripts/apply-postgis.js).
+//   * Because the geography columns are GENERATED ALWAYS ... STORED from the
+//     lat/lng, every normal Prisma insert/update keeps them in sync for free.
+//   * The matching query itself is raw SQL ($queryRaw) that uses those indexed
+//     geography columns — see src/services/matching.service.js.
+//
+// So: Prisma owns the tables and the writes; raw SQL owns the one thing Prisma
+// can't express (the spatial index) and the one query that needs it (matching).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  phone     String // contact detail — only revealed once a confirmed booking links two users
+  password  String // bcrypt hash, never returned by the API
+  createdAt DateTime  @default(now())
+
+  ridesAsDriver Ride[]    @relation("DriverRides")
+  bookings      Booking[] @relation("RiderBookings")
+
+  @@map("users")
+}
+
+enum RideStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+model Ride {
+  id            String     @id @default(cuid())
+  driver        User       @relation("DriverRides", fields: [driverId], references: [id])
+  driverId      String
+  originLabel   String // human-readable, e.g. "Ahmedabad ISCON"
+  destLabel     String
+  originLat     Float
+  originLng     Float
+  destLat       Float
+  destLng       Float
+  departureTime DateTime
+  seatsTotal    Int // fixed capacity. Availability = seatsTotal - confirmed bookings.
+  estimatedCost Decimal    @db.Decimal(10, 2) // total cost, split across confirmed riders
+  status        RideStatus @default(OPEN)
+  createdAt     DateTime   @default(now())
+
+  bookings Booking[]
+
+  // NOTE: origin_geog / dest_geog geography columns + GiST indexes are added by
+  // scripts/apply-postgis.js. They are intentionally NOT declared here.
+
+  @@index([departureTime])
+  @@index([status])
+  @@map("rides")
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  ride      Ride          @relation(fields: [rideId], references: [id])
+  rideId    String
+  rider     User          @relation("RiderBookings", fields: [riderId], references: [id])
+  riderId   String
+  status    BookingStatus @default(CONFIRMED)
+  createdAt DateTime      @default(now())
+
+  // A rider can hold at most one ACTIVE booking per ride. This unique constraint
+  // is a second, independent safety net against double-booking (belt & braces
+  // alongside the row-lock in booking.service.js).
+  @@unique([rideId, riderId])
+  @@index([rideId, status])
+  @@map("bookings")
+}
+
+// Structured audit trail — every ride post, booking, cancellation and cost
+// recalculation lands here. This is the "evidence if a rider disputes a charge".
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String // RIDE_POSTED | BOOKING_CREATED | BOOKING_CANCELLED | RIDE_CANCELLED | COST_RECALCULATED | RIDE_COMPLETED
+  actorId   String? // who did it
+  rideId    String?
+  bookingId String?
+  details   Json // structured payload: seat counts, costs, before/after shares
+  createdAt DateTime @default(now())
+
+  @@index([rideId])
+  @@index([action])
+  @@map("audit_logs")
+}

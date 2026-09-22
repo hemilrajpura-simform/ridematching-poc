@@ -1,0 +1,33 @@
+{
+  "name": "ridematch",
+  "version": "1.0.0",
+  "description": "Ride sharing & matching POC — Express + Prisma + PostGIS. DB-level matching and a race-safe seat count.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/server.js",
+    "start": "node --env-file=.env src/server.js",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:postgis": "node --env-file=.env scripts/apply-postgis.js",
+    "db:setup": "npm run db:push && npm run db:postgis",
+    "db:seed": "node --env-file=.env scripts/seed.js",
+    "test": "node --test --test-concurrency=1 tests/",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pino": "^9.5.0",
+    "pino-http": "^10.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.0.0",
+    "prisma": "^5.22.0"
+  }
+}

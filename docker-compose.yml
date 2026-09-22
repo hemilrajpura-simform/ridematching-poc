@@ -1,0 +1,42 @@
+# `docker compose up` brings the whole thing up with no manual setup beyond .env (§6).
+# The db uses the official PostGIS image so the extension is available out of the box.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ride}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ridepass}
+      POSTGRES_DB: ${POSTGRES_DB:-ridematch}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ride} -d ${POSTGRES_DB:-ridematch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ride}:${POSTGRES_PASSWORD:-ridepass}@db:5432/${POSTGRES_DB:-ridematch}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-a-real-env-please}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      MATCH_RADIUS_METERS: ${MATCH_RADIUS_METERS:-5000}
+    ports:
+      - "3000:3000"
+    # On boot: create tables (db push), apply PostGIS, then start the API.
+    # --accept-data-loss: origin_geog/dest_geog live outside schema.prisma (added
+    # by apply-postgis.js), so db push sees them as unknown columns and wants to
+    # drop them on every restart. They're GENERATED ALWAYS ... STORED from
+    # originLat/Lng and destLat/Lng (which ARE in schema.prisma and untouched),
+    # so apply-postgis.js regenerates them right after — nothing is actually lost.
+    command: sh -c "npx prisma db push --skip-generate --accept-data-loss && node scripts/apply-postgis.js && node src/server.js"
+
+volumes:
+  pgdata:

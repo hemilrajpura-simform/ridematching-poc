@@ -1,0 +1,293 @@
+{
+  "info": {
+    "name": "RideMatch API",
+    "description": "Ride sharing & matching POC. Run 'Register (Driver)' and 'Register (Rider)' first — their test scripts save {{driverToken}} and {{riderToken}} automatically for every other request.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "driverToken", "value": "" },
+    { "key": "riderToken", "value": "" },
+    { "key": "rideId", "value": "" },
+    { "key": "bookingId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (Driver)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) { pm.collectionVariables.set('driverToken', body.token); }",
+                  "pm.test('registered', () => pm.response.code === 201);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@x.dev\",\n  \"name\": \"Driver One\",\n  \"phone\": \"+91-90000-11111\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register (Rider)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) { pm.collectionVariables.set('riderToken', body.token); }",
+                  "pm.test('registered', () => pm.response.code === 201);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider@x.dev\",\n  \"name\": \"Rider One\",\n  \"phone\": \"+91-90000-22222\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (Driver)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) { pm.collectionVariables.set('driverToken', body.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@x.dev\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (Rider)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) { pm.collectionVariables.set('riderToken', body.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "content-type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"rider@x.dev\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rides",
+      "item": [
+        {
+          "name": "Post a ride (as Driver)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.collectionVariables.set('rideId', body.id); }",
+                  "pm.test('created', () => pm.response.code === 201);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "content-type", "value": "application/json" },
+              { "key": "authorization", "value": "Bearer {{driverToken}}" }
+            ],
+            "url": "{{baseUrl}}/rides",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"originLabel\": \"Ahmedabad ISCON\",\n  \"destLabel\": \"Gandhinagar\",\n  \"originLat\": 23.0225,\n  \"originLng\": 72.5714,\n  \"destLat\": 23.2156,\n  \"destLng\": 72.6369,\n  \"departureTime\": \"2030-01-01T09:00:00Z\",\n  \"seatsTotal\": 3,\n  \"estimatedCost\": 450\n}"
+            }
+          }
+        },
+        {
+          "name": "Search / match rides (as Rider)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "authorization", "value": "Bearer {{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/rides/search?originLat=23.03&originLng=72.57&destLat=23.21&destLng=72.64&departAfter=2030-01-01T08:00:00Z&departBefore=2030-01-01T10:00:00Z",
+              "host": ["{{baseUrl}}"],
+              "path": ["rides", "search"],
+              "query": [
+                { "key": "originLat", "value": "23.03" },
+                { "key": "originLng", "value": "72.57" },
+                { "key": "destLat", "value": "23.21" },
+                { "key": "destLng", "value": "72.64" },
+                { "key": "departAfter", "value": "2030-01-01T08:00:00Z" },
+                { "key": "departBefore", "value": "2030-01-01T10:00:00Z" },
+                { "key": "radiusMeters", "value": "5000", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Explain search query plan (§8)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "authorization", "value": "Bearer {{riderToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/rides/search/explain?originLat=23.03&originLng=72.57&destLat=23.21&destLng=72.64&departAfter=2030-01-01T08:00:00Z&departBefore=2030-01-01T10:00:00Z",
+              "host": ["{{baseUrl}}"],
+              "path": ["rides", "search", "explain"],
+              "query": [
+                { "key": "originLat", "value": "23.03" },
+                { "key": "originLng", "value": "72.57" },
+                { "key": "destLat", "value": "23.21" },
+                { "key": "destLng", "value": "72.64" },
+                { "key": "departAfter", "value": "2030-01-01T08:00:00Z" },
+                { "key": "departBefore", "value": "2030-01-01T10:00:00Z" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "My posted rides (as Driver)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/rides/mine"
+          }
+        },
+        {
+          "name": "View ride detail (as Rider, pre-booking)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/rides/{{rideId}}"
+          }
+        },
+        {
+          "name": "Complete ride (as Driver)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/rides/{{rideId}}/complete"
+          }
+        },
+        {
+          "name": "Cancel ride (as Driver)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/rides/{{rideId}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Book a seat (as Rider)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.booking && body.booking.id) { pm.collectionVariables.set('bookingId', body.booking.id); }",
+                  "pm.test('booked', () => pm.response.code === 201);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "content-type", "value": "application/json" },
+              { "key": "authorization", "value": "Bearer {{riderToken}}" }
+            ],
+            "url": "{{baseUrl}}/bookings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rideId\": \"{{rideId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My bookings (as Rider)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/bookings/mine"
+          }
+        },
+        {
+          "name": "View ride detail (as Rider, post-booking — phone now visible)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/rides/{{rideId}}"
+          }
+        },
+        {
+          "name": "Cancel booking (as Rider)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "authorization", "value": "Bearer {{riderToken}}" }],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/cancel"
+          }
+        },
+        {
+          "name": "Cancel booking (as Driver, on their own ride)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "authorization", "value": "Bearer {{driverToken}}" }],
+            "url": "{{baseUrl}}/bookings/{{bookingId}}/cancel"
+          }
+        }
+      ]
+    }
+  ]
+}
