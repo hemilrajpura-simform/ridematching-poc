@@ -12,7 +12,7 @@ export async function register({ email, name, phone, password }) {
   if (existing) throw conflict("Email already registered");
 
   const hash = await bcrypt.hash(password, 10);
-  const user = await prisma.user({
+  const user = await prisma.user.create({
     data: { email, name, phone, password: hash },
   });
   return { token: signToken(user), user: publicUser(user) };
